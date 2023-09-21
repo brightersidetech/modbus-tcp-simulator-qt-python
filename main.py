@@ -1,6 +1,6 @@
 from typing import Optional
 from PySide6 import QtCore, QtWidgets, QtGui
-import sys, time
+import sys, time, os
 from pyModbusTCP.client import ModbusClient
 
 class Worker(QtCore.QObject):
