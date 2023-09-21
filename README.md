@@ -1,1 +1,1 @@
-# Modbus TCP Msater Simulator Using QT for Python
+# Modbus TCP Master Simulator Using QT for Python
