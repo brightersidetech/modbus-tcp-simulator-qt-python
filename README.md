@@ -14,6 +14,7 @@ Continous polling is not yet implemented so is done by sending a single read com
 ### Instructions 
 - Make sure you have python and pip installed. It is recommeded that you have python version 2.7 or higher
 - Install dependencies in the requirements.txt file by running ```pip install -r requirements.txt``` command
+- Run the main script with the ```python main.py``` command
 - To configure you TCP server parameters, use the ```Settings``` menu
 - Set the desired device id, function code and number of registers to read
 - Press the ```connect``` button and then ```Read``` button to read data
