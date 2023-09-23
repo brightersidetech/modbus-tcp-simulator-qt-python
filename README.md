@@ -19,7 +19,7 @@ Continous polling is not yet implemented so is done by sending a single read com
 ### Usage
 - The simulator opens with one register to read by default. The Default Server address and port can slo be seen from the status bar
 
-![alt text](assets/1.png)
+![alt text](assets/1.PNG)
 
 - You should modify the number of registers you wish to read. The register table below will update as you modify the ```Number of Registers``` parameter
 ![alt text](./assets/2.png)
