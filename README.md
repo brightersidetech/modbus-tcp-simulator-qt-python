@@ -22,12 +22,21 @@ Continous polling is not yet implemented so is done by sending a single read com
 ![alt text](assets/1.PNG)
 
 - You should modify the number of registers you wish to read. The register table below will update as you modify the ```Number of Registers``` parameter
-![alt text](./assets/2.png)
+
+![alt text](./assets/2.PNG)
+
 - To configure you TCP server parameters, use the ```Settings``` menu
-![alt text](./assets/3.png)
+
+![alt text](./assets/3.PNG)
+
 - Now you can attempt to connect to the server by clicking the connect button. If the connection fails, an error message will be displayed
-![alt text](./assets/4.png)
+
+![alt text](./assets/4.PNG)
+
 - Correcting the Server ip or port and trying again will establish the connection. The ```Disconnect``` and ```Read``` will now be activated
-![alt text](./assets/5.png)
+
+![alt text](./assets/5.PNG)
+
 - Make sure you have selected the correct function code and press the ```Read``` button. Data is displayed in the registers table below
-![alt text](./assets/6.png)
+
+![alt text](./assets/6.PNG)
