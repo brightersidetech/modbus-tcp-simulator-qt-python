@@ -15,6 +15,17 @@ Continous polling is not yet implemented so is done by sending a single read com
 - Make sure you have python and pip installed. It is recommeded that you have python version 2.7 or higher
 - Install dependencies in the requirements.txt file by running ```pip install -r requirements.txt``` command
 - Run the main script with the ```python main.py``` command
+
+### Usage
+- The simulator opens with one register to read by default. The Default Server address and port can slo be seen from the status bar
+![alt text](./assets/1.png)
+- You should modify the number of registers you wish to read. The register table below will update as you modify the ```Number of Registers``` parameter
+![alt text](./assets/2.png)
 - To configure you TCP server parameters, use the ```Settings``` menu
-- Set the desired device id, function code and number of registers to read
-- Press the ```connect``` button and then ```Read``` button to read data
+![alt text](./assets/3.png)
+- Now you can attempt to connect to the server by clicking the connect button. If the connection fails, an error message will be displayed
+![alt text](./assets/4.png)
+- Correcting the Server ip or port and trying again will establish the connection. The ```Disconnect``` and ```Read``` will now be activated
+![alt text](./assets/5.png)
+- Make sure you have selected the correct function code and press the ```Read``` button. Data is displayed in the registers table below
+![alt text](./assets/6.png)

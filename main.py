@@ -88,6 +88,7 @@ class ModbusMaster(QtWidgets.QMainWindow):
 
         # main window
         self.setWindowTitle("Modbus Master")
+        self.setWindowIcon(QtGui.QIcon('./assets/modbus.png'))
         self.setGeometry(100, 100, 500, 200)
 
         # main widget layout
