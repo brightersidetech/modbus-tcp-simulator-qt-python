@@ -3,8 +3,9 @@ import sys, time
 from pyModbusTCP.client import ModbusClient
 
 
+# Worker to handle communication with modbus server
 class Worker(QtCore.QObject):
-    # signal
+    # signals
     modbus_data = QtCore.Signal(list)
     modbus_status = QtCore.Signal(int)
 
@@ -73,6 +74,7 @@ class Worker(QtCore.QObject):
             time.sleep(2)
 
 
+# Main window class
 class ModbusMaster(QtWidgets.QMainWindow):
     stop_signal = QtCore.Signal()
     connect_signal = QtCore.Signal(int, int, str, int)
@@ -95,7 +97,7 @@ class ModbusMaster(QtWidgets.QMainWindow):
         self.main_window = QtWidgets.QWidget(self)
         self.main_window.setLayout(self.layout_main)
 
-        # Thread:
+        # Thread
         self.thread = QtCore.QThread()
         self.worker = Worker()
         self.worker.moveToThread(self.thread)
@@ -109,6 +111,7 @@ class ModbusMaster(QtWidgets.QMainWindow):
         self.worker.modbus_status.connect(self.modbus_status_handler)
         self.thread.start()
 
+        # modbus connection and read buttons
         self.button_layout = QtWidgets.QHBoxLayout(self)
         self.button_group = QtWidgets.QGroupBox()
         self.button_group.setLayout(self.button_layout)
@@ -125,54 +128,44 @@ class ModbusMaster(QtWidgets.QMainWindow):
         self.button_layout.addWidget(self.btn_read)
         self.button_layout.addStretch()
 
+        # connect slots to buttons
         self.btn_start.clicked.connect(self.connect_modbus)
-
         self.btn_stop.clicked.connect(self.fill_reg_table)
         self.btn_stop.clicked.connect(self.worker.disconnect)
-
         self.btn_read.clicked.connect(self.fill_reg_table)
         self.btn_read.clicked.connect(self.read_registers)
 
+        # Main window elements
         self.slave_properties = SlaveProperties()
         self.modbus_request = ModbusRequest()
         self.modbus_request.no_of_registers.valueChanged.connect(self.draw_registers)
         self.modbus_registers = ModbusRegisters()
 
-        # Registers table
+        # Registers table - Start with one cell
         self.table = QtWidgets.QTableWidget(self)
-        # self.setCentralWidget(self.table)
-
         self.table.setColumnCount(1)
         self.table.setRowCount(1)
         self.table.horizontalHeader().hide()
         self.table.verticalHeader().hide()
         self.table.setRowHeight(0, 30)
         self.table.setColumnWidth(0, 30)
-
-        # for i in range(10):
-        #     self.table.setRowHeight(i, 30)
-        #     self.table.setColumnWidth(i, 30)
-        # self.table.setColumnWidth(2, 50)
-
         self.table.setItem(0, 0, QtWidgets.QTableWidgetItem('-/-'))
 
         # Modbus status message
         self.modbus_status_message = QtWidgets.QLabel()
         self.modbus_status_message.setHidden(True)
 
-        # add widgets to main layout
+        # add components to main window layout
         self.layout_main.addWidget(self.modbus_status_message)
         self.layout_main.addWidget(self.slave_properties)
         self.layout_main.addWidget(self.modbus_request)
         self.layout_main.addWidget(self.table)
-        # self.layout_main.addWidget(self.modbus_registers)
 
         # add main widget to main window
         self.setCentralWidget(self.main_window)
 
         # menu bar
         menu_bar = self.menuBar()
-
         file_menu = menu_bar.addMenu('&File')
         edit_menu = menu_bar.addMenu('&Edit')
         setting_menu = menu_bar.addMenu('&Settings')
@@ -212,51 +205,49 @@ class ModbusMaster(QtWidgets.QMainWindow):
         # toolbar.addAction(settings_action)
         # toolbar.addAction(settings_action)
         # toolbar.addSeparator()
-
         # toolbar.addAction(exit_action)
 
         # status bar
         self.status_bar = self.statusBar()
-        # add a permanent widget to the status bar
-        self.character_count = QtWidgets.QLabel("Length: 0")
+
+        # add a permanent widgets to the status bar
+        self.data_length = 0
+        self.character_count = QtWidgets.QLabel("Length: " + str(self.data_length))
         self.statusbar_address_text = "TCP: " + self.address + ":" + str(self.port)
         self.server_address_port = QtWidgets.QLabel(self.statusbar_address_text)
-        self.status_bar.addPermanentWidget(self.server_address_port)
+        self.status_bar.addWidget(self.server_address_port)
         self.status_bar.addPermanentWidget(self.character_count)
 
         # settings dialog
-        self.settings_dialaog = SettingsDialog()
-        self.settings_dialaog.settings_signal.connect(self.save_server_settings)
+        self.settings_dialog = SettingsDialog()
+        self.settings_dialog.settings_signal.connect(self.save_server_settings)
 
+    # update address and port on ok button in settings dialog
     @QtCore.Slot(str, str)
     def save_server_settings(self, address, port):
-        print(address)
-        print(port)
         self.address = address
         self.port = int(port)
+        self.statusbar_address_text = "TCP: " + self.address + ":" + str(self.port)
+        self.server_address_port.setText(self.statusbar_address_text)
 
-    # When stop_btn is clicked this runs. Terminates the worker and the thread.
-    def stop_thread(self):
-        self.worker.running = False
-        self.stop_signal.emit()  # emit the finished signal on stop
-
+    # exit action
     def quit(self):
-        # if self.confirm_save():
+        self.thread.quit()
+        self.worker.deleteLater()
+        self.thread.deleteLater()
         self.destroy(sys.exit(1))
 
+    # Open settings dialog
     def open_dialog(self):
-        # setting_dilaog = Form()
-        self.settings_dialaog.exec()
+        self.settings_dialog.exec()
 
-    QtCore.Slot()
-
+    @QtCore.Slot()
     def connect_modbus(self):
         slave_id = self.slave_properties.slave_address_selector.value()
         slave_scan_rate = self.slave_properties.slave_scan_rate.value()
         self.connect_signal.emit(slave_id, slave_scan_rate, self.address, self.port)
 
-    QtCore.Slot()
-
+    @QtCore.Slot()
     def read_registers(self):
         start_address = self.modbus_request.start_adddress.value()
         number_of_registers = self.modbus_request.no_of_registers.value()
@@ -264,12 +255,10 @@ class ModbusMaster(QtWidgets.QMainWindow):
         print("Selected Function code ", function_code)
         self.read_signal.emit(start_address, number_of_registers, function_code)
 
-    QtCore.Slot(list)
-
+    @QtCore.Slot(list)
     def modbus_data_handler(self, data):
-        print(data)
-        # for reg in range(0, data_length):
-        #     self.modbus_registers.registers[reg].setText(str(data[reg]))
+        self.data_length = len(data)
+        self.character_count = QtWidgets.QLabel("Length: " + str(self.data_length))
         i = 0
         j = 0
         for reg in data:
@@ -280,8 +269,7 @@ class ModbusMaster(QtWidgets.QMainWindow):
                 i = i + 1
                 j = 0
 
-    QtCore.Slot(int)
-
+    @QtCore.Slot(int)
     def draw_registers(self, registers):
         print(registers)
         if registers % 10 == 0:
@@ -293,8 +281,7 @@ class ModbusMaster(QtWidgets.QMainWindow):
         self.table.setColumnCount(10)
         self.fill_reg_table()
 
-    QtCore.Slot(int)
-
+    @QtCore.Slot(int)
     def modbus_status_handler(self, enum):
         if enum == 1:
             self.modbus_status_message.setVisible(False)
@@ -306,7 +293,7 @@ class ModbusMaster(QtWidgets.QMainWindow):
             self.btn_stop.setDisabled(True)
             self.btn_read.setDisabled(True)
         elif enum == 0:
-            self.modbus_status_message.setText("Cannot connect to Modbus Server")
+            self.modbus_status_message.setText("Could not connect to Modbus Server")
             self.modbus_status_message.setStyleSheet("QLabel { background-color : red; color : white; }")
             self.modbus_status_message.setVisible(True)
         elif enum == 4:
@@ -390,7 +377,7 @@ class ModbusRequest(QtWidgets.QWidget):
         self.lay = QtWidgets.QHBoxLayout(self)
         self.lay.addWidget(self.modbus_request_group)
 
-
+# not in use
 class ModbusRegisters(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(ModbusRegisters, self).__init__(parent)
@@ -411,17 +398,6 @@ class ModbusRegisters(QtWidgets.QWidget):
             self.registers.append(reg)
 
         self.register_layout.addWidget(self.registers[0], 0, 0)
-
-        # i = 0
-        # j = 0
-
-        # for reg in self.registers:
-        #     self.register_layout.addWidget(reg, i, j)
-        #     j =j + 1
-        #     if j == 9:
-        #         j = 0
-        #         i = i + 1
-
         self.lay = QtWidgets.QHBoxLayout(self)
         self.lay.addWidget(self.registers_group)
 
@@ -454,7 +430,6 @@ class SettingsDialog(QtWidgets.QDialog):
         layout.addWidget(self.port_label, 1, 0)
         layout.addWidget(self.port, 1, 1)
 
-        # layout.addWidget(self.button)
         layout.addWidget(self.buttonBox, 2, 0, 1, 2)
         # Set dialog layout
         self.setLayout(layout)
