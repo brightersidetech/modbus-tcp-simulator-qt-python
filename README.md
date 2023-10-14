@@ -40,3 +40,6 @@ Continous polling is not yet implemented so is done by sending a single read com
 - Make sure you have selected the correct function code and press the ```Read``` button. Data is displayed in the registers table below
 
 ![alt text](./assets/6.PNG)
+
+### Using pyinstaller 
+```pyinstaller -n "sModbusMaster" --noconsole --onefile --icon=modbus.ico main.py```

@@ -49,23 +49,36 @@ class Worker(QtCore.QObject):
             self.modbus_master = None
             self.modbus_status.emit(2)
 
-    @QtCore.Slot(int, int, str)
-    def read_registers(self, start_address, no_registers, function_code):
+    @QtCore.Slot(int, int, str, list)
+    def read_registers(self, start_address, no_registers, function_code, data):
         # while self.running:
         print(start_address)
         print(no_registers)
         print(function_code)
         if self.running:
             # Choose function code
-            if function_code == "Read Holding Registers (0x03)":
+            if function_code == "Read Coils (0x01)":
+                self.response = self.modbus_master.read_coils(start_address, no_registers)
+            elif function_code == "Read Holding Registers (0x03)":
                 self.response = self.modbus_master.read_holding_registers(start_address, no_registers)
             elif function_code == "Read Discrete Inputs (0x02)":
                 self.response = self.modbus_master.read_discrete_inputs(start_address, no_registers)
             elif function_code == "Read Input Registers (0x04)":
                 self.response = self.modbus_master.read_input_registers(start_address, no_registers)
+            elif function_code == "Write Single Coil (0x05)":
+                self.response = self.modbus_master.write_single_coil(start_address, data[0])
+            elif function_code == "Write Single Register (0x06)":
+                self.response = self.modbus_master.write_single_register(start_address, data[0])
+            elif function_code == "Write Multiple Coils (0x0f)":
+                self.response = self.modbus_master.write_multiple_coils(start_address, data)
+            elif function_code == "Write Multiple Registers (0x10)":
+                self.response = self.modbus_master.write_multiple_registers(start_address, data)
 
             if self.response:
-                print(self.response)
+                print("Modbus response: ", self.response)
+                if function_code == "Read Coils (0x01)" or function_code == "Read Discrete Inputs (0x02)":
+                    self.response = [int(self.response[i]) for i in range(0, len(self.response))]
+                print("Modbus response: ", self.response)
                 self.modbus_data.emit(self.response)
                 self.modbus_status.emit(5)
             else:
@@ -78,7 +91,7 @@ class Worker(QtCore.QObject):
 class ModbusMaster(QtWidgets.QMainWindow):
     stop_signal = QtCore.Signal()
     connect_signal = QtCore.Signal(int, int, str, int)
-    read_signal = QtCore.Signal(int, int, str)
+    modbus_request_signal = QtCore.Signal(int, int, str, list)
 
     def __init__(self):
         super().__init__()
@@ -88,7 +101,7 @@ class ModbusMaster(QtWidgets.QMainWindow):
 
         # main window
         self.setWindowTitle("Modbus Master")
-        self.setWindowIcon(QtGui.QIcon('./assets/modbus.png'))
+        self.setWindowIcon(QtGui.QIcon('./modbus.ico'))
         self.setGeometry(100, 100, 500, 200)
 
         # main widget layout
@@ -107,7 +120,7 @@ class ModbusMaster(QtWidgets.QMainWindow):
         # self.thread.finished.connect(self.worker.stop) # when thread finishes, stop worker
         # self.stop_signal.connect(self.worker.stop)
         self.connect_signal.connect(self.worker.modbus_connect)
-        self.read_signal.connect(self.worker.read_registers)
+        self.modbus_request_signal.connect(self.worker.read_registers)
         self.worker.modbus_data.connect(self.modbus_data_handler)
         self.worker.modbus_status.connect(self.modbus_status_handler)
         self.thread.start()
@@ -118,7 +131,7 @@ class ModbusMaster(QtWidgets.QMainWindow):
         self.button_group.setLayout(self.button_layout)
         self.btn_start = QtWidgets.QPushButton("Connect")
         self.btn_stop = QtWidgets.QPushButton("Disconnect")
-        self.btn_read = QtWidgets.QPushButton("Read")
+        self.btn_read = QtWidgets.QPushButton("Send Request")
 
         # initial button states
         self.btn_read.setDisabled(True)
@@ -131,15 +144,17 @@ class ModbusMaster(QtWidgets.QMainWindow):
 
         # connect slots to buttons
         self.btn_start.clicked.connect(self.connect_modbus)
-        self.btn_stop.clicked.connect(self.fill_reg_table)
+        # self.btn_stop.clicked.connect(self.fill_reg_table)
         self.btn_stop.clicked.connect(self.worker.disconnect)
-        self.btn_read.clicked.connect(self.fill_reg_table)
+        # self.btn_read.clicked.connect(self.fill_reg_table)
         self.btn_read.clicked.connect(self.read_registers)
 
         # Main window elements
         self.slave_properties = SlaveProperties()
         self.modbus_request = ModbusRequest()
         self.modbus_request.no_of_registers.valueChanged.connect(self.draw_registers)
+        self.modbus_request.start_adddress.valueChanged.connect(self.draw_registers)
+        self.modbus_request.func_code_select.currentTextChanged.connect(self.draw_registers)
         self.modbus_registers = ModbusRegisters()
 
         # Registers table - Start with one cell
@@ -150,7 +165,8 @@ class ModbusMaster(QtWidgets.QMainWindow):
         self.table.verticalHeader().hide()
         self.table.setRowHeight(0, 30)
         self.table.setColumnWidth(0, 30)
-        self.table.setItem(0, 0, QtWidgets.QTableWidgetItem('-/-'))
+        # self.table.setItem(0, 0, QtWidgets.QTableWidgetItem('-/-'))
+        self.table.setItem(0, 0, QtWidgets.QTableWidgetItem('0'))
 
         # Modbus status message
         self.modbus_status_message = QtWidgets.QLabel()
@@ -253,15 +269,29 @@ class ModbusMaster(QtWidgets.QMainWindow):
         start_address = self.modbus_request.start_adddress.value()
         number_of_registers = self.modbus_request.no_of_registers.value()
         function_code = self.modbus_request.func_code_select.currentText()
+
+        table_rows = self.table.rowCount()
+        table_columns = self.table.columnCount()
+
+        registers_data = []
+        for i in range(table_rows):
+            for j in range(table_columns):
+                registers_data.append(self.table.item(i, j).text())
+
+        registers_data = [int(registers_data[i]) for i in
+                          range(start_address % 10, start_address % 10 + number_of_registers)]
+        print(registers_data)
+
         print("Selected Function code ", function_code)
-        self.read_signal.emit(start_address, number_of_registers, function_code)
+        self.modbus_request_signal.emit(start_address, number_of_registers, function_code, registers_data)
 
     @QtCore.Slot(list)
     def modbus_data_handler(self, data):
         self.data_length = len(data)
         self.character_count = QtWidgets.QLabel("Length: " + str(self.data_length))
+        start_reg = self.modbus_request.start_adddress.value()
         i = 0
-        j = 0
+        j = start_reg
         for reg in data:
             self.table.setItem(i, j, QtWidgets.QTableWidgetItem(str(reg)))
             j = j + 1
@@ -271,16 +301,36 @@ class ModbusMaster(QtWidgets.QMainWindow):
                 j = 0
 
     @QtCore.Slot(int)
-    def draw_registers(self, registers):
-        print(registers)
-        if registers % 10 == 0:
-            i = registers / 10
+    def draw_registers(self):
+        # print(registers)
+        no_of_registers = self.modbus_request.no_of_registers.value()
+        start_reg = self.modbus_request.start_adddress.value()
+        # print(no_of_registers)
+        # print(start_reg)
+        no_of_registers += (start_reg % 10)
+        if no_of_registers % 10 == 0:
+            i = int(no_of_registers / 10)
         else:
-            i = registers / 10 + 1
+            i = int(no_of_registers / 10 + 1)
 
         self.table.setRowCount(i)
         self.table.setColumnCount(10)
         self.fill_reg_table()
+
+        for x in range(start_reg % 10):
+            item = QtWidgets.QTableWidgetItem('-/-')
+            item.setBackground(QtGui.QColor(100, 100, 150))
+            item.setFlags(~QtCore.Qt.ItemIsEnabled)
+            self.table.setItem(0, x, item)
+            # self.table.item(0, x).setBackground(QtGui.QColor(10
+            # 0,100,150))
+        for x in range(no_of_registers % 10, 10):
+            if no_of_registers % 10 != 0:
+                item = QtWidgets.QTableWidgetItem('-/-')
+                item.setBackground(QtGui.QColor(100, 100, 150))
+                item.setFlags(~QtCore.Qt.ItemIsEnabled)
+                self.table.setItem(i - 1, x, item)
+                # print(x)
 
     @QtCore.Slot(int)
     def modbus_status_handler(self, enum):
@@ -300,6 +350,7 @@ class ModbusMaster(QtWidgets.QMainWindow):
         elif enum == 4:
             self.modbus_status_message.setVisible(True)
             self.modbus_status_message.setText("Error Reading Registers")
+            self.modbus_status_message.setStyleSheet("QLabel { background-color : red; color : white; }")
         elif enum == 5:
             self.modbus_status_message.setVisible(False)
 
@@ -310,7 +361,7 @@ class ModbusMaster(QtWidgets.QMainWindow):
             for j in range(columns):
                 self.table.setRowHeight(i, 30)
                 self.table.setColumnWidth(j, 30)
-                self.table.setItem(i, j, QtWidgets.QTableWidgetItem('-/-'))
+                self.table.setItem(i, j, QtWidgets.QTableWidgetItem('0'))
 
 
 class SlaveProperties(QtWidgets.QWidget):
@@ -352,10 +403,16 @@ class ModbusRequest(QtWidgets.QWidget):
         self.func_code_label = QtWidgets.QLabel("Function Code")
         self.func_code_select = QtWidgets.QComboBox()
 
-        self.func_code_select.addItem("Read Holding Registers (0x03)")
-        self.func_code_select.addItem("Read Discrete Inputs (0x02)")
-        self.func_code_select.addItem("Read Input Registers (0x04)")
         self.func_code_select.addItem("Read Coils (0x01)")
+        self.func_code_select.addItem("Read Discrete Inputs (0x02)")
+        self.func_code_select.addItem("Read Holding Registers (0x03)")
+        self.func_code_select.addItem("Read Input Registers (0x04)")
+        self.func_code_select.addItem("Write Single Coil (0x05)")
+        self.func_code_select.addItem("Write Single Register (0x06)")
+        self.func_code_select.addItem("Write Multiple Coils (0x0f)")
+        self.func_code_select.addItem("Write Multiple Registers (0x10)")
+
+        self.func_code_select.currentTextChanged.connect(self.function_code_handler)
 
         self.start_address_label = QtWidgets.QLabel("Start Address")
         self.start_adddress = QtWidgets.QSpinBox(minimum=0, maximum=100, value=0, alignment=QtCore.Qt.AlignLeft)
@@ -377,6 +434,16 @@ class ModbusRequest(QtWidgets.QWidget):
 
         self.lay = QtWidgets.QHBoxLayout(self)
         self.lay.addWidget(self.modbus_request_group)
+
+    @QtCore.Slot()
+    def function_code_handler(self):
+        function_code = self.func_code_select.currentText()
+        if function_code == "Write Single Coil (0x05)" or function_code == "Write Single Register (0x06)":
+            self.no_of_registers.setValue(1)
+            self.no_of_registers.setEnabled(False)
+        else:
+            self.no_of_registers.setEnabled(True)
+
 
 # not in use
 class ModbusRegisters(QtWidgets.QWidget):
@@ -443,6 +510,7 @@ class SettingsDialog(QtWidgets.QDialog):
 
 if __name__ == "__main__":
     app = QtWidgets.QApplication([])
+    app.setWindowIcon(QtGui.QIcon('modbus.ico'))
     modbusWidget = ModbusMaster()
     modbusWidget.show()
     modbusWidget.resize(800, 300)
